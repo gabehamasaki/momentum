@@ -8,14 +8,16 @@ import (
 	"github.com/gabehamasaki/momentum/services/identity/utils"
 	"github.com/gabehamasaki/momentum/shared/v1/proto"
 	"github.com/golang/protobuf/ptypes/empty"
+	"go.uber.org/zap"
 )
 
 type IdentityServer struct {
 	proto.UnimplementedIdentityServiceServer
+	logger      *zap.Logger
 	userService *services.UserService
 }
 
-func NewIdentityServer(userService *services.UserService) *IdentityServer {
+func NewIdentityServer(userService *services.UserService, logger *zap.Logger) *IdentityServer {
 	return &IdentityServer{userService: userService}
 }
 

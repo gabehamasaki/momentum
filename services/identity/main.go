@@ -225,8 +225,8 @@ func setupGRPCServer(logger *zap.Logger, db *database.Database, port string) (*g
 
 	// Initialize services
 	logger.Info("Initializing services")
-	userService := services.NewUserService(db)
-	identityServer := server.NewIdentityServer(userService)
+	userService := services.NewUserService(db, logger)
+	identityServer := server.NewIdentityServer(userService, logger)
 
 	// Register services
 	proto.RegisterIdentityServiceServer(grpcServer, identityServer)

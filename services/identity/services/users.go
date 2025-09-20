@@ -6,14 +6,16 @@ import (
 
 	"github.com/gabehamasaki/momentum/services/identity/database"
 	"github.com/gabehamasaki/momentum/services/identity/models"
+	"go.uber.org/zap"
 )
 
 type UserService struct {
-	db *database.Database
+	db     *database.Database
+	logger *zap.Logger
 }
 
-func NewUserService(db *database.Database) *UserService {
-	return &UserService{db: db}
+func NewUserService(db *database.Database, logger *zap.Logger) *UserService {
+	return &UserService{db: db, logger: logger}
 }
 
 func (s *UserService) GetUsers(ctx context.Context) ([]models.User, error) {
