@@ -21,7 +21,7 @@ func NewIdentityServer(userService *services.UserService, logger *zap.Logger) *I
 	return &IdentityServer{userService: userService}
 }
 
-func (s *IdentityServer) GetUsers(ctx context.Context, empty *empty.Empty) (*proto.UsersResponse, error) {
+func (s *IdentityServer) GetUsers(ctx context.Context, empty *empty.Empty) (*proto.GetUsersResponse, error) {
 	users, err := s.userService.GetUsers(ctx)
 	if err != nil {
 		return nil, err
@@ -34,15 +34,15 @@ func (s *IdentityServer) GetUsers(ctx context.Context, empty *empty.Empty) (*pro
 			Name:      user.Name,
 			Email:     user.Email,
 			Role:      user.Role.Name,
-			CreatedAt: user.CreatedAt.Unix(),
+			CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 		protoUsers = append(protoUsers, protoUser)
 	}
 
-	return &proto.UsersResponse{Users: protoUsers}, nil
+	return &proto.GetUsersResponse{Users: protoUsers}, nil
 }
 
-func (s *IdentityServer) GetUser(ctx context.Context, req *proto.UserRequest) (*proto.UserResponse, error) {
+func (s *IdentityServer) GetUser(ctx context.Context, req *proto.GetUserRequest) (*proto.GetUserResponse, error) {
 	user, err := s.userService.FindUserByID(ctx, req.GetId())
 	if err != nil {
 		return nil, err
@@ -53,35 +53,28 @@ func (s *IdentityServer) GetUser(ctx context.Context, req *proto.UserRequest) (*
 		Name:      user.Name,
 		Email:     user.Email,
 		Role:      user.Role.Name,
-		CreatedAt: user.CreatedAt.Unix(),
+		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	var protoPermissions []*proto.Permission
+	var protoPermissions []string
 	for _, perm := range user.Permissions {
-		protoPerm := &proto.Permission{
-			Id:   int64(perm.ID),
-			Name: perm.Name,
-		}
-		protoPermissions = append(protoPermissions, protoPerm)
+		protoPermissions = append(protoPermissions, perm.Name)
 	}
 
-	var protoRolePermissions []*proto.Permission
+	var protoRolePermissions []string
 	for _, perm := range user.Role.Permissions {
-		protoPerm := &proto.Permission{
-			Id:   int64(perm.ID),
-			Name: perm.Name,
-		}
-		protoRolePermissions = append(protoRolePermissions, protoPerm)
+		protoRolePermissions = append(protoRolePermissions, perm.Name)
 	}
 
-	return &proto.UserResponse{
-		User: protoUser,
-		Role: &proto.Role{
-			Id:          user.Role.ID,
-			Name:        user.Role.Name,
+	return &proto.GetUserResponse{
+		Name:  protoUser.Name,
+		Email: protoUser.Email,
+		Role: &proto.RoleUserResponse{
+			Name:        protoUser.Role,
 			Permissions: protoRolePermissions,
 		},
 		Permissions: protoPermissions,
+		CreatedAt:   protoUser.CreatedAt,
 	}, nil
 }
 

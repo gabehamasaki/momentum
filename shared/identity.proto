@@ -8,8 +8,8 @@ option go_package = "v1/proto";
 
 service IdentityService {
   // User Management
-  rpc GetUsers(google.protobuf.Empty) returns (UsersResponse);
-  rpc GetUser(UserRequest) returns (UserResponse);
+  rpc GetUsers(google.protobuf.Empty) returns (GetUsersResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
   rpc StoreUser(StoreUserRequest) returns (StoreUserResponse);
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
@@ -34,7 +34,7 @@ message User {
   string name = 2;
   string email = 3;
   string role = 4;
-  int64 created_at = 6;
+  string created_at = 6;
 }
 
 message Role {
@@ -48,18 +48,25 @@ message Permission {
   string name = 2;
 }
 
-message UsersResponse {
+message GetUsersResponse {
   repeated User users = 1;
 }
 
-message UserRequest {
+message GetUserRequest {
   string id = 1;
 }
 
-message UserResponse {
-  User user = 1;
-  Role role = 2;
-  repeated Permission permissions = 3;
+message RoleUserResponse {
+  string name = 1;
+  repeated string permissions = 2;
+}
+
+message GetUserResponse {
+  string name = 1;
+  string email = 2;
+  string created_at = 4;
+  RoleUserResponse role = 3;
+  repeated string permissions = 5;
 }
 
 message StoreUserRequest {

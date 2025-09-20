@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -230,8 +229,6 @@ func (d *Database) seedPermissions(tx *gorm.DB) error {
 		"user.store",
 		"user.update",
 	}
-
-	log.Printf("Criando %d permissões...", len(permissions))
 
 	for _, name := range permissions {
 		var perm models.Permission
