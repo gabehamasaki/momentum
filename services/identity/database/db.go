@@ -126,7 +126,6 @@ func (d *Database) createConnection(ctx context.Context) (*gorm.DB, error) {
 	}
 
 	d.connection = db
-	log.Println("Conexão com banco de dados estabelecida com sucesso")
 	return d.connection, nil
 }
 
@@ -164,7 +163,6 @@ func (d *Database) Close() error {
 	}
 
 	d.connection = nil
-	log.Println("Conexão com banco de dados fechada")
 	return nil
 }
 
@@ -180,8 +178,6 @@ func (d *Database) MigrateWithContext(ctx context.Context) error {
 		return fmt.Errorf("falha ao conectar para migração: %w", err)
 	}
 
-	log.Println("Iniciando migrações do banco de dados...")
-
 	// Lista de modelos para migrar
 	models := []interface{}{
 		&models.Permission{},
@@ -195,7 +191,6 @@ func (d *Database) MigrateWithContext(ctx context.Context) error {
 		}
 	}
 
-	log.Println("Migrações concluídas com sucesso")
 	return nil
 }
 
@@ -211,8 +206,6 @@ func (d *Database) SeederWithContext(ctx context.Context) error {
 		return fmt.Errorf("falha ao conectar para seed: %w", err)
 	}
 
-	log.Println("Iniciando seed do banco de dados...")
-
 	// Executar seed em transação para garantir consistência
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := d.seedPermissions(tx); err != nil {
@@ -223,7 +216,6 @@ func (d *Database) SeederWithContext(ctx context.Context) error {
 			return fmt.Errorf("falha ao fazer seed das roles: %w", err)
 		}
 
-		log.Println("Seed concluído com sucesso")
 		return nil
 	})
 }
@@ -250,7 +242,6 @@ func (d *Database) seedPermissions(tx *gorm.DB) error {
 			if err := tx.Create(&perm).Error; err != nil {
 				return fmt.Errorf("falha ao criar permissão '%s': %w", name, err)
 			}
-			log.Printf("✓ Permissão '%s' criada", name)
 		} else if err != nil {
 			return fmt.Errorf("falha ao buscar permissão '%s': %w", name, err)
 		}
@@ -269,13 +260,10 @@ func (d *Database) seedRoles(tx *gorm.DB) error {
 		},
 	}
 
-	log.Printf("Criando %d roles...", len(rolesConfig))
-
 	for roleName, permNames := range rolesConfig {
 		if err := d.createRoleWithPermissions(tx, roleName, permNames); err != nil {
 			return fmt.Errorf("falha ao criar role '%s': %w", roleName, err)
 		}
-		log.Printf("✓ Role '%s' criada com %d permissões", roleName, len(permNames))
 	}
 
 	return nil

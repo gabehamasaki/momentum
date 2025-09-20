@@ -3,110 +3,266 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gabehamasaki/momentum/services/identity/database"
 	"github.com/gabehamasaki/momentum/services/identity/server"
 	"github.com/gabehamasaki/momentum/services/identity/services"
+	"github.com/gabehamasaki/momentum/shared"
 	"github.com/gabehamasaki/momentum/shared/v1/proto"
 	_ "github.com/joho/godotenv/autoload"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+)
+
+const (
+	serviceName    = "identity-service"
+	serviceVersion = "v1.0.0"
 )
 
 func main() {
-	// Configuração de timeout para operações de database
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Verificar se DSN está definida
-	dsn := os.Getenv("IDENTITY_DSN")
-	if dsn == "" {
-		log.Fatalf("Variável de ambiente IDENTITY_DSN não está definida")
+	// 1. Initialize logger first
+	if err := initializeLogger(); err != nil {
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
 	}
 
-	// Inicializar database
-	log.Println("Inicializando database...")
-	config := database.DefaultDatabaseConfig()
-	// Exemplo de customização se necessário:
-	// config.MaxOpenConnections = 50
+	logger := shared.GetLogger()
 
-	db := database.NewDBWithConfig(dsn, config)
+	// Log startup
+	port := getEnvOrDefault("IDENTITY_GRPC_PORT", "50051")
+	shared.LogStartup(serviceName, serviceVersion, port)
+
+	// 2. Setup graceful shutdown
+	ctx, cancel := setupGracefulShutdown()
+	defer cancel()
+
+	// 3. Initialize database
+	db, err := initializeDatabase(ctx, logger)
+	if err != nil {
+		logger.Fatal("Failed to initialize database", zap.Error(err))
+	}
 	defer func() {
 		if closeErr := db.Close(); closeErr != nil {
-			log.Printf("Erro ao fechar conexão com database: %v", closeErr)
+			logger.Error("Error closing database connection", zap.Error(closeErr))
 		}
 	}()
 
-	// Conectar ao database com retry
-	log.Println("Conectando ao database...")
+	// 4. Setup and start gRPC server
+	grpcServer, listener := setupGRPCServer(logger, db, port)
+
+	// Start server in goroutine
+	go func() {
+		logger.Info("Starting gRPC server",
+			zap.String("address", listener.Addr().String()),
+			zap.String("service", serviceName),
+		)
+
+		if err := grpcServer.Serve(listener); err != nil {
+			logger.Fatal("Failed to serve gRPC", zap.Error(err))
+		}
+	}()
+
+	// 5. Wait for shutdown signal
+	<-ctx.Done()
+
+	// 6. Graceful shutdown
+	shared.LogShutdown(serviceName, "received shutdown signal")
+
+	logger.Info("Shutting down gRPC server...")
+	grpcServer.GracefulStop()
+
+	logger.Info("Server shutdown completed")
+	shared.Sync() // Flush logs
+}
+
+// initializeLogger sets up the zap logger with proper configuration
+func initializeLogger() error {
+	loggerConfig := &shared.LoggerConfig{
+		ServerName:       serviceName,
+		Environment:      getEnvOrDefault("ENVIRONMENT", "development"),
+		LogLevel:         getEnvOrDefault("LOG_LEVEL", "info"),
+		EnableConsole:    true,
+		EnableFile:       getEnvOrDefault("ENVIRONMENT", "development") == "production",
+		LogFilePath:      "/var/log/identity-service.log",
+		EnableJSON:       getEnvOrDefault("ENVIRONMENT", "development") == "production",
+		EnableCaller:     getEnvOrDefault("ENVIRONMENT", "development") != "production",
+		EnableStacktrace: true,
+	}
+
+	return shared.InitLogger(loggerConfig)
+}
+
+// setupGracefulShutdown configures graceful shutdown handling
+func setupGracefulShutdown() (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		<-c
+		shared.GetLogger().Info("Received shutdown signal")
+		cancel()
+	}()
+
+	return ctx, cancel
+}
+
+// initializeDatabase sets up database connection with retries and health checks
+func initializeDatabase(ctx context.Context, logger *zap.Logger) (*database.Database, error) {
+	// Get DSN from environment
+	dsn := os.Getenv("IDENTITY_DSN")
+	if dsn == "" {
+		return nil, fmt.Errorf("IDENTITY_DSN environment variable is not set")
+	}
+
+	logger.Info("Initializing database connection")
+
+	// Create database config
+	config := database.DefaultDatabaseConfig()
+	// Customize if needed:
+	// config.MaxOpenConnections = 50
+
+	db := database.NewDBWithConfig(dsn, config)
+
+	// Connect with retry logic
 	const maxRetries = 3
 	const retryDelay = 2 * time.Second
 
+	logger.Info("Connecting to database with retry logic",
+		zap.Int("max_retries", maxRetries),
+		zap.Duration("retry_delay", retryDelay),
+	)
+
+	// Create a timeout context for database operations
+	dbCtx, dbCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer dbCancel()
+
+	var lastErr error
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		select {
-		case <-ctx.Done():
-			log.Fatalf("Timeout na conexão com database: %v", ctx.Err())
+		case <-dbCtx.Done():
+			return nil, fmt.Errorf("database connection timeout: %w", dbCtx.Err())
 		default:
 		}
 
-		_, err := db.ConnWithContext(ctx)
+		// Attempt connection
+		_, err := db.ConnWithContext(dbCtx)
 		if err == nil {
-			// Fazer health check
-			if healthErr := db.HealthCheck(ctx); healthErr == nil {
-				log.Println("✓ Conectado ao database com sucesso")
+			// Perform health check
+			if healthErr := db.HealthCheck(dbCtx); healthErr == nil {
+				logger.Info("Successfully connected to database")
 
-				// Mostrar estatísticas da conexão
+				// Log connection stats
 				if stats, statsErr := db.Stats(); statsErr == nil {
-					log.Printf("✓ Pool de conexões: %d aberta(s), %d em uso, %d idle",
-						stats.OpenConnections, stats.InUse, stats.Idle)
+					logger.Info("Database connection pool status",
+						zap.Int("open_connections", stats.OpenConnections),
+						zap.Int("in_use", stats.InUse),
+						zap.Int("idle", stats.Idle),
+					)
 				}
 				break
 			} else {
-				err = healthErr
+				lastErr = healthErr
 			}
+		} else {
+			lastErr = err
 		}
 
 		if attempt == maxRetries {
-			log.Fatalf("Falha na conexão após %d tentativas: %v", maxRetries, err)
+			return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, lastErr)
 		}
 
-		log.Printf("Tentativa %d/%d falhou, tentando novamente em %v... Erro: %v",
-			attempt, maxRetries, retryDelay, err)
+		logger.Warn("Database connection attempt failed, retrying",
+			zap.Int("attempt", attempt),
+			zap.Int("max_retries", maxRetries),
+			zap.Duration("retry_in", retryDelay),
+			zap.Error(lastErr),
+		)
+
 		time.Sleep(retryDelay)
 	}
 
-	// Executar migrations
-	log.Println("Executando migrations...")
-	if err := db.MigrateWithContext(ctx); err != nil {
-		log.Fatalf("Falha ao executar migrations: %v", err)
-	}
-	// Fazer seed do database
-	log.Println("Populando database com dados iniciais...")
-	if err := db.SeederWithContext(ctx); err != nil {
-		log.Fatalf("Falha ao popular database: %v", err)
-	}
-	log.Println("Sistema inicializado com sucesso!")
-
-	// Iniciar servidor gRPC
-	log.Println("Iniciando servidor gRPC...")
-
-	l, err := net.Listen("tcp", fmt.Sprintf(":%s", os.Getenv("IDENTITY_GRPC_PORT")))
-	if err != nil {
-		log.Fatalf("Falha ao iniciar listener: %v", err)
+	// Run migrations
+	logger.Info("Running database migrations")
+	if err := db.MigrateWithContext(dbCtx); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	grpcServer := grpc.NewServer()
-
-	userService := services.NewUserService(db)
-
-	proto.RegisterIdentityServiceServer(grpcServer, server.NewIdentityServer(userService))
-
-	log.Printf("Servidor gRPC rodando na porta %s", os.Getenv("IDENTITY_GRPC_PORT"))
-	if serveErr := grpcServer.Serve(l); serveErr != nil {
-		log.Fatalf("Falha ao rodar servidor gRPC: %v", serveErr)
+	// Seed database
+	logger.Info("Seeding database with initial data")
+	if err := db.SeederWithContext(dbCtx); err != nil {
+		return nil, fmt.Errorf("failed to seed database: %w", err)
 	}
+
+	logger.Info("Database initialization completed successfully")
+	return db, nil
 }
 
+// setupGRPCServer creates and configures the gRPC server
+func setupGRPCServer(logger *zap.Logger, db *database.Database, port string) (*grpc.Server, net.Listener) {
+	// Configure interceptor
+	interceptorConfig := &shared.InterceptorConfig{
+		Logger:               logger,
+		LogLevel:             zapcore.InfoLevel,
+		LogRequests:          getEnvOrDefault("LOG_GRPC_REQUESTS", "true") == "true",
+		LogResponses:         getEnvOrDefault("LOG_GRPC_RESPONSES", "false") == "true",
+		LogMetadata:          getEnvOrDefault("LOG_GRPC_METADATA", "false") == "true",
+		SensitiveFields:      []string{"password", "token", "secret", "authorization", "cookie"},
+		SlowRequestThreshold: 3 * time.Second,
+		ServerName:           serviceName,
+	}
+
+	// Create gRPC server with interceptors
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(shared.LoggingUnaryInterceptor(interceptorConfig)),
+		// Add more interceptors here as needed
+		// grpc.StreamInterceptor(...),
+	)
+
+	// Initialize services
+	logger.Info("Initializing services")
+	userService := services.NewUserService(db)
+	identityServer := server.NewIdentityServer(userService)
+
+	// Register services
+	proto.RegisterIdentityServiceServer(grpcServer, identityServer)
+
+	// Enable reflection in development
+	if getEnvOrDefault("ENVIRONMENT", "development") == "development" {
+		logger.Info("Enabling gRPC reflection for development")
+		reflection.Register(grpcServer)
+	}
+
+	// Create listener
+	address := fmt.Sprintf(":%s", port)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		logger.Fatal("Failed to create listener",
+			zap.String("address", address),
+			zap.Error(err),
+		)
+	}
+
+	logger.Info("gRPC server configured",
+		zap.String("address", listener.Addr().String()),
+		zap.Bool("reflection_enabled", getEnvOrDefault("ENVIRONMENT", "development") == "development"),
+	)
+
+	return grpcServer, listener
+}
+
+// getEnvOrDefault returns environment variable value or default if not set
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}

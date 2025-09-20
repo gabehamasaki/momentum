@@ -24,11 +24,26 @@ func (s *UserService) GetUsers(ctx context.Context) ([]models.User, error) {
 	}
 	defer s.db.Close()
 
-	if err := conn.Preload("Role", nil).Find(&users).Error; err != nil {
+	if err := conn.Preload("Role").Find(&users).Error; err != nil {
 		return nil, err
 	}
 
 	return users, nil
+}
+
+func (s *UserService) FindUserByID(ctx context.Context, id string) (models.User, error) {
+	var user models.User
+	conn, err := s.db.ConnWithContext(ctx)
+	if err != nil {
+		return models.User{}, err
+	}
+	defer s.db.Close()
+
+	if err := conn.Preload("Role").Preload("Role.Permissions").Preload("Permissions").First(&user, "id = ?", id).Error; err != nil {
+		return models.User{}, err
+	}
+
+	return user, nil
 }
 
 func (s *UserService) StoreUser(ctx context.Context, user models.User) (models.User, error) {

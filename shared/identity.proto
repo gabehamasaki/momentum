@@ -8,25 +8,25 @@ option go_package = "v1/proto";
 
 service IdentityService {
   // User Management
-  rpc GetUsers (google.protobuf.Empty) returns (UsersResponse);
-  rpc GetUser (UserRequest) returns (UsersResponse);
-  rpc StoreUser (StoreUserRequest) returns (StoreUserResponse);
-  rpc UpdateUser (UpdateUserRequest) returns (UpdateUserResponse);
-  rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+  rpc GetUsers(google.protobuf.Empty) returns (UsersResponse);
+  rpc GetUser(UserRequest) returns (UserResponse);
+  rpc StoreUser(StoreUserRequest) returns (StoreUserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 
   // Role Management
-  rpc GetRoles (google.protobuf.Empty) returns (RolesResponse);
-  rpc GetRole (RoleRequest) returns (RoleResponse);
-  rpc StoreRole (StoreRoleRequest) returns (StoreRoleResponse);
-  rpc UpdateRole (UpdateRoleRequest) returns (UpdateRoleResponse);
-  rpc DeleteRole (DeleteRoleRequest) returns (DeleteRoleResponse);
+  rpc GetRoles(google.protobuf.Empty) returns (RolesResponse);
+  rpc GetRole(RoleRequest) returns (RoleResponse);
+  rpc StoreRole(StoreRoleRequest) returns (StoreRoleResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
 
   // Permission Management
-  rpc GetPermissions (google.protobuf.Empty) returns (PermissionsResponse);
-  rpc GetPermission (PermissionRequest) returns (PermissionResponse);
-  rpc StorePermission (StorePermissionRequest) returns (StorePermissionResponse);
-  rpc UpdatePermission (UpdatePermissionRequest) returns (UpdatePermissionResponse);
-  rpc DeletePermission (DeletePermissionRequest) returns (DeletePermissionResponse);
+  rpc GetPermissions(google.protobuf.Empty) returns (PermissionsResponse);
+  rpc GetPermission(PermissionRequest) returns (PermissionResponse);
+  rpc StorePermission(StorePermissionRequest) returns (StorePermissionResponse);
+  rpc UpdatePermission(UpdatePermissionRequest) returns (UpdatePermissionResponse);
+  rpc DeletePermission(DeletePermissionRequest) returns (DeletePermissionResponse);
 }
 
 message User {
@@ -35,18 +35,18 @@ message User {
   string email = 3;
   string role = 4;
   int64 created_at = 6;
-};
+}
 
 message Role {
   string id = 1;
   string name = 2;
   repeated Permission permissions = 3;
-};
+}
 
 message Permission {
   int64 id = 1;
   string name = 2;
-};
+}
 
 message UsersResponse {
   repeated User users = 1;
@@ -92,11 +92,9 @@ message DeleteUserResponse {
   bool success = 1;
 }
 
-
 message RolesResponse {
   repeated Role roles = 1;
 }
-
 
 message RoleRequest {
   string id = 1;
@@ -170,5 +168,3 @@ message DeletePermissionRequest {
 message DeletePermissionResponse {
   bool success = 1;
 }
-
-

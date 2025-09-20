@@ -18,7 +18,7 @@ type User struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
-	permissions []*Permission `gorm:"many2many:user_permissions"`
+	Permissions []*Permission `gorm:"many2many:user_permissions"`
 }
 
 func (b *User) BeforeCreate(tx *gorm.DB) (err error) {

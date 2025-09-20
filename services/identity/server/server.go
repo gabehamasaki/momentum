@@ -40,6 +40,49 @@ func (s *IdentityServer) GetUsers(ctx context.Context, empty *empty.Empty) (*pro
 	return &proto.UsersResponse{Users: protoUsers}, nil
 }
 
+func (s *IdentityServer) GetUser(ctx context.Context, req *proto.UserRequest) (*proto.UserResponse, error) {
+	user, err := s.userService.FindUserByID(ctx, req.GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	protoUser := &proto.User{
+		Id:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		Role:      user.Role.Name,
+		CreatedAt: user.CreatedAt.Unix(),
+	}
+
+	var protoPermissions []*proto.Permission
+	for _, perm := range user.Permissions {
+		protoPerm := &proto.Permission{
+			Id:   int64(perm.ID),
+			Name: perm.Name,
+		}
+		protoPermissions = append(protoPermissions, protoPerm)
+	}
+
+	var protoRolePermissions []*proto.Permission
+	for _, perm := range user.Role.Permissions {
+		protoPerm := &proto.Permission{
+			Id:   int64(perm.ID),
+			Name: perm.Name,
+		}
+		protoRolePermissions = append(protoRolePermissions, protoPerm)
+	}
+
+	return &proto.UserResponse{
+		User: protoUser,
+		Role: &proto.Role{
+			Id:          user.Role.ID,
+			Name:        user.Role.Name,
+			Permissions: protoRolePermissions,
+		},
+		Permissions: protoPermissions,
+	}, nil
+}
+
 func (s *IdentityServer) StoreUser(ctx context.Context, req *proto.StoreUserRequest) (*proto.StoreUserResponse, error) {
 	hashedPassword, err := utils.Bcrypt(req.GetPassword())
 	if err != nil {
