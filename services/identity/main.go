@@ -36,7 +36,7 @@ func main() {
 	logger := shared.GetLogger()
 
 	// Log startup
-	port := getEnvOrDefault("IDENTITY_GRPC_PORT", "50051")
+	port := shared.GetEnv("IDENTITY_GRPC_PORT", "50051")
 	shared.LogStartup(serviceName, serviceVersion, port)
 
 	// 2. Setup graceful shutdown
@@ -86,13 +86,13 @@ func main() {
 func initializeLogger() error {
 	loggerConfig := &shared.LoggerConfig{
 		ServerName:       serviceName,
-		Environment:      getEnvOrDefault("ENVIRONMENT", "development"),
-		LogLevel:         getEnvOrDefault("LOG_LEVEL", "info"),
+		Environment:      shared.GetEnv("ENVIRONMENT", "development"),
+		LogLevel:         shared.GetEnv("LOG_LEVEL", "info"),
 		EnableConsole:    true,
-		EnableFile:       getEnvOrDefault("ENVIRONMENT", "development") == "production",
+		EnableFile:       shared.GetEnv("ENVIRONMENT", "development") == "production",
 		LogFilePath:      "/var/log/identity-service.log",
-		EnableJSON:       getEnvOrDefault("ENVIRONMENT", "development") == "production",
-		EnableCaller:     getEnvOrDefault("ENVIRONMENT", "development") != "production",
+		EnableJSON:       shared.GetEnv("ENVIRONMENT", "development") == "production",
+		EnableCaller:     shared.GetEnv("ENVIRONMENT", "development") != "production",
 		EnableStacktrace: true,
 	}
 
@@ -212,9 +212,9 @@ func setupGRPCServer(logger *zap.Logger, db *database.Database, port string) (*g
 	interceptorConfig := &shared.InterceptorConfig{
 		Logger:               logger,
 		LogLevel:             zapcore.InfoLevel,
-		LogRequests:          getEnvOrDefault("LOG_GRPC_REQUESTS", "true") == "true",
-		LogResponses:         getEnvOrDefault("LOG_GRPC_RESPONSES", "false") == "true",
-		LogMetadata:          getEnvOrDefault("LOG_GRPC_METADATA", "false") == "true",
+		LogRequests:          shared.GetEnv("LOG_GRPC_REQUESTS", "true") == "true",
+		LogResponses:         shared.GetEnv("LOG_GRPC_RESPONSES", "false") == "true",
+		LogMetadata:          shared.GetEnv("LOG_GRPC_METADATA", "false") == "true",
 		SensitiveFields:      []string{"password", "token", "secret", "authorization", "cookie"},
 		SlowRequestThreshold: 3 * time.Second,
 		ServerName:           serviceName,
@@ -236,7 +236,7 @@ func setupGRPCServer(logger *zap.Logger, db *database.Database, port string) (*g
 	proto.RegisterIdentityServiceServer(grpcServer, identityServer)
 
 	// Enable reflection in development
-	if getEnvOrDefault("ENVIRONMENT", "development") == "development" {
+	if shared.GetEnv("ENVIRONMENT", "development") == "development" {
 		logger.Info("Enabling gRPC reflection for development")
 		reflection.Register(grpcServer)
 	}
@@ -253,16 +253,8 @@ func setupGRPCServer(logger *zap.Logger, db *database.Database, port string) (*g
 
 	logger.Info("gRPC server configured",
 		zap.String("address", listener.Addr().String()),
-		zap.Bool("reflection_enabled", getEnvOrDefault("ENVIRONMENT", "development") == "development"),
+		zap.Bool("reflection_enabled", shared.GetEnv("ENVIRONMENT", "development") == "development"),
 	)
 
 	return grpcServer, listener
-}
-
-// getEnvOrDefault returns environment variable value or default if not set
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
