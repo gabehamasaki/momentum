@@ -127,8 +127,6 @@ func initializeDatabase(ctx context.Context, logger *zap.Logger) (*database.Data
 
 	// Create database config
 	config := database.DefaultDatabaseConfig()
-	// Customize if needed:
-	// config.MaxOpenConnections = 50
 
 	db := database.NewDBWithConfig(dsn, config)
 
@@ -223,8 +221,6 @@ func setupGRPCServer(logger *zap.Logger, db *database.Database, port string) (*g
 	// Create gRPC server with interceptors
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(shared.LoggingUnaryInterceptor(interceptorConfig)),
-		// Add more interceptors here as needed
-		// grpc.StreamInterceptor(...),
 	)
 
 	// Initialize services
