@@ -1,9 +1,6 @@
-
-
-
 # Arquitetura para Impacto: Um Blueprint de Microsserviços em Golang para uma Plataforma de E-commerce de Alta Transação
 
-## 1. O Imperativo Estratégico: Por Que Este Projeto Vai Garantir Sua Contratação em 2025
+## 1. O Imperativo Estratégico
 
 Este projeto não é apenas uma aplicação, mas uma vitrine das habilidades mais demandadas do mercado de tecnologia em 2025. Go (Golang) tornou-se a linguagem padrão para arquiteturas cloud-native, microsserviços e sistemas de alta performance. Empresas como Google, Uber, Netflix, Mercado Livre e PayPal apostam em Go para resolver desafios de escala, resiliência e eficiência. O domínio de Go, aliado à arquitetura de microsserviços, é um diferencial competitivo comprovado, refletido em salários elevados e alta demanda global.
 
@@ -18,11 +15,6 @@ Este projeto não é apenas uma aplicação, mas uma vitrine das habilidades mai
 - Resiliência: falhas isoladas não derrubam o sistema.
 - Padrão em plataformas de alta transação (Mercado Livre, Uber, Allegro).
 - Permite adoção de padrões avançados: Saga, CQRS, Event-Driven, mensageria (Kafka/RabbitMQ).
-
-### 1.3. O que este projeto prova sobre você
-- Capacidade de projetar sistemas escaláveis, resilientes e prontos para produção.
-- Proficiência em Go, gRPC, Docker, Kubernetes, mensageria e observabilidade.
-- Conhecimento prático de padrões de arquitetura usados pelas maiores empresas do mundo.
 
 ---
 
