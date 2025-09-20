@@ -1,0 +1,25 @@
+services:
+  identity_db:
+    image: postgres:15.3-alpine
+    container_name: identity_db
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: identity
+      POSTGRES_DB: identity
+    ports:
+      - "5401:5432"
+    networks:
+      - public-network
+      - private-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+networks:
+  public-network:
+    driver: bridge
+  private-network:
+    driver: bridge
+    internal: true
