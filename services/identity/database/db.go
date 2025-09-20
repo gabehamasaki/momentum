@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gabehamasaki/momentum/services/identity/models"
-	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -291,7 +290,6 @@ func (d *Database) createRoleWithPermissions(tx *gorm.DB, roleName string, permN
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Criar nova role
 		role = models.Role{
-			ID:   uuid.New().String(),
 			Name: roleName,
 		}
 		if err := tx.Create(&role).Error; err != nil {
@@ -364,4 +362,3 @@ func (d *Database) Stats() (*DatabaseStats, error) {
 		Idle:            stats.Idle,
 	}, nil
 }
-
