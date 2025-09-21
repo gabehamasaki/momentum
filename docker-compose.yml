@@ -1,14 +1,17 @@
 services:
-  identity_db:
+  db:
     image: postgres:15.3-alpine
-    container_name: identity_db
+    container_name: db
     restart: always
     environment:
       POSTGRES_PASSWORD: password
-      POSTGRES_USER: identity
-      POSTGRES_DB: identity
+      POSTGRES_USER: root
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/postgres:/docker-entrypoint-initdb.d/
     ports:
-      - "5401:5432"
+      - "5432:5432"
     networks:
       - public-network
       - private-network
@@ -17,6 +20,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+volumes:
+  postgres_data:
 networks:
   public-network:
     driver: bridge
