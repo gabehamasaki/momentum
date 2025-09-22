@@ -13,7 +13,7 @@ clean:
 
 proto:
 	@echo "==> Gerando código Go a partir dos protos..."
-	protoc -I=$(SHARED_PATH) --go_out=$(SHARED_PATH)/v1/proto --go-grpc_out=$(SHARED_PATH)/v1/proto $(SHARED_PATH)/identity.proto
+	protoc -I=$(SHARED_PATH) --go_out=$(SHARED_PATH) --go-grpc_out=$(SHARED_PATH) $(SHARED_PATH)/protobuf/identity.proto --experimental_allow_proto3_optional
 
 up:
 	@echo "==> Subindo stack com Docker Compose..."
