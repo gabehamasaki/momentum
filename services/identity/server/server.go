@@ -48,33 +48,18 @@ func (s *IdentityServer) GetUser(ctx context.Context, req *proto.GetUserRequest)
 		return nil, err
 	}
 
-	protoUser := &proto.User{
-		Id:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Role:      user.Role.Name,
-		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
-	}
-
-	var protoPermissions []string
+	var permissions []string
 	for _, perm := range user.Permissions {
-		protoPermissions = append(protoPermissions, perm.Name)
-	}
-
-	var protoRolePermissions []string
-	for _, perm := range user.Role.Permissions {
-		protoRolePermissions = append(protoRolePermissions, perm.Name)
+		permissions = append(permissions, perm.Name)
 	}
 
 	return &proto.GetUserResponse{
-		Name:  protoUser.Name,
-		Email: protoUser.Email,
-		Role: &proto.RoleUserResponse{
-			Name:        protoUser.Role,
-			Permissions: protoRolePermissions,
-		},
-		Permissions: protoPermissions,
-		CreatedAt:   protoUser.CreatedAt,
+		Name:        user.Name,
+		Email:       user.Email,
+		Role:        user.Role.Name,
+		RoleId:      user.Role.ID,
+		Permissions: permissions,
+		CreatedAt:   user.CreatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
@@ -98,9 +83,11 @@ func (s *IdentityServer) StoreUser(ctx context.Context, req *proto.StoreUserRequ
 
 	return &proto.StoreUserResponse{
 		User: &proto.User{
-			Id:    storedUser.ID,
-			Name:  storedUser.Name,
-			Email: storedUser.Email,
+			Id:        storedUser.ID,
+			Name:      storedUser.Name,
+			Email:     storedUser.Email,
+			Role:      storedUser.Role.Name,
+			CreatedAt: storedUser.CreatedAt.Format("2006-01-02 15:04:05"),
 		},
 	}, nil
 }

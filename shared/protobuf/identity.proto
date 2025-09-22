@@ -56,17 +56,13 @@ message GetUserRequest {
   string id = 1;
 }
 
-message RoleUserResponse {
-  string name = 1;
-  repeated string permissions = 2;
-}
-
 message GetUserResponse {
   string name = 1;
   string email = 2;
   string created_at = 4;
-  RoleUserResponse role = 3;
-  repeated string permissions = 5;
+  string role = 3;
+  string role_id = 5;
+  repeated string permissions = 6;
 }
 
 message StoreUserRequest {

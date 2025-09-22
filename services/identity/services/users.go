@@ -60,5 +60,17 @@ func (s *UserService) StoreUser(ctx context.Context, user models.User) (models.U
 		return models.User{}, err
 	}
 
+	// Load role and permissions
+	if err := conn.Preload("Role").Preload("Role.Permissions").Preload("Permissions").First(&user, "id = ?", user.ID).Error; err != nil {
+		return models.User{}, err
+	}
+
+	// Assign role permissions to user
+	user.Permissions = append(user.Permissions, user.Role.Permissions...)
+	// Remove duplicate permissions
+	if err := conn.Model(&user).Association("Permissions").Replace(user.Permissions); err != nil {
+		return models.User{}, err
+	}
+
 	return user, nil
 }
